@@ -30,7 +30,7 @@ def write_image_content_and_comment() -> object:
     with open('comment.txt', 'w') as file:
         file.write(image_comment)
 
-def get_server_address() -> str:
+def get_server_address(my_params) -> str:
     """It gets upload_url data from a server for upload a photo."""
     server_address = requests.get(url_vk_api + 
         'photos.getWallUploadServer', params=my_params)
@@ -38,9 +38,9 @@ def get_server_address() -> str:
     upload_url = server_address.json()['response']['upload_url']
     return upload_url
 
-def upload_photo_to_server() -> tuple:
+def upload_photo_to_server(my_params) -> tuple:
     """It uploads a photo to a wall."""
-    upload_url = get_server_address()
+    upload_url = get_server_address(my_params)
     files = {
         'file': ('image.jpg', open('image.jpg', 'rb')), 
         'Content-Type': 'image/jpg', 
@@ -53,9 +53,9 @@ def upload_photo_to_server() -> tuple:
     hash_str = upload_photo.json()['hash'] 
     return (server, photo, hash_str)
 
-def save_photo_on_wall() -> tuple:
+def save_photo_on_wall(my_params, access_token, user_id, group_id) -> tuple:
     """It saves a photo to a wall."""
-    server, photo, hash_str = upload_photo_to_server()
+    server, photo, hash_str = upload_photo_to_server(my_params)
     save_photo = requests.post(url_vk_api + 'photos.saveWallPhoto',
         params={
             'v': 5.95, 
@@ -77,10 +77,11 @@ def read_saved_comment() -> object:
         message = file.read()
     return message
 
-def post_photo_on_wall() -> dict:
+def post_photo_on_wall(my_params, access_token, user_id, group_id) -> dict:
     """It posts a photo and comment on a wall."""
     message = read_saved_comment()
-    media_id, owner_id = save_photo_on_wall()
+    media_id, owner_id = save_photo_on_wall(my_params, access_token,
+        user_id, group_id)
     post_photo = requests.get(url_vk_api + 'wall.post', 
         params={
             'v': 5.95, 
@@ -100,27 +101,25 @@ def post_photo_on_wall() -> dict:
 
 def main():
     """It supervises work of all functions."""
-    try:
-        get_image_content_and_comment()
-        write_image_content_and_comment()
-        print(post_photo_on_wall())
-        os.remove('image.jpg')
-        os.remove('comment.txt')
-    except requests.RequestException as err:
-        print(err.response)
-
-if __name__ == '__main__':
-
     load_dotenv()
     user_id = os.getenv('user_id')
     group_id = os.getenv('group_id')
     access_token = os.getenv('access_token')
-
     my_params = {
         'v': 5.95, 
         'user_id': user_id,
         'group_id': group_id,
         'access_token': access_token
     }
+    try:
+        get_image_content_and_comment()
+        write_image_content_and_comment()
+        print(post_photo_on_wall(my_params, access_token, user_id, group_id))
+        os.remove('image.jpg')
+        os.remove('comment.txt')
+    except requests.RequestException as err:
+        print(err.response)
+
+if __name__ == '__main__':
 
     main()
